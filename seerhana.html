@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<body>
+<script>
+fetch('backup.json')
+  .then(r => r.json())
+  .then(data => console.log('Success:', data))
+  .catch(err => console.error('Error:', err));
+</script>
+</body>
+</html>

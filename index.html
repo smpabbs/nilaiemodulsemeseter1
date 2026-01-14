@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Penilaian Modul - Sistem Evaluasi Digital</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+<!-- Library untuk Export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+</head>
+<body>
+
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <h1><i class="fas fa-clipboard-check"></i> Sistem Penilaian Modul Digital</h1>
+        <p>Evaluasi dan monitoring kualitas modul pembelajaran</p>
+        
+        <!-- Assignment Info -->
+        <div class="assignment-info">
+            <div class="assignee">
+                <div class="color-box amar"></div>
+                <span><strong>Mr. Amar</strong>: <span id="amarCount">36</span> Lesson</span>
+            </div>
+            <div class="assignee">
+                <div class="color-box rina"></div>
+                <span><strong>Ms. Rina</strong>: <span id="rinaCount">35</span> Lesson</span>
+            </div>
+            <div class="assignee">
+                <div class="color-box total"></div>
+                <span><strong>Total</strong>: <span id="totalCount">71</span> Lesson</span>
+            </div>
+        </div>
+        
+        <!-- Pembagian Khusus -->
+        <div class="special-assignment">
+            <small><strong>Pembagian Khusus:</strong> IPA & Informatika (Mr. Amar) | Matematika (Ms. Rina)</small>
+        </div>
+    </div>
+
+    <!-- ================= TAB NAVIGATION ================= -->
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-button active" id="tabInputBtn">
+                <i class="fas fa-edit"></i> Input Penilaian
+            </button>
+            <button class="tab-button" id="tabRekapBtn">
+                <i class="fas fa-chart-bar"></i> Rekapan Lengkap
+            </button>
+        </div>
+        
+        <div class="tab-content">
+            <!-- ================= INPUT TAB ================= -->
+            <div id="inputTab" class="tab-pane">
+                <div class="hint">
+                    <i class="fas fa-info-circle"></i> 
+                    Pilih mapel, level, dan lesson untuk memulai penilaian. Modul akan langsung ditampilkan di bawah.
+                    <strong>Penilai: <span id="currentEvaluator">-</span></strong>
+                </div>
+                
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label><i class="fas fa-book"></i> Mata Pelajaran</label>
+                        <select id="mapel">
+                            <option value="">Pilih Mapel</option>
+                        </select>
+                        <div class="hint">Pilih mata pelajaran yang akan dinilai</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-layer-group"></i> Level</label>
+                        <select id="level">
+                            <option value="">Pilih Level</option>
+                        </select>
+                        <div class="hint">Pilih level/kelas modul</div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-file-alt"></i> Lesson</label>
+                        <select id="lesson">
+                            <option value="">Pilih Lesson</option>
+                        </select>
+                        <div class="hint">Pilih lesson/modul spesifik</div>
+                    </div>
+                </div>
+                
+                <!-- Writer Info -->
+                <div id="writerDetail" class="hint evaluator-hint" style="display: none;">
+                    <i class="fas fa-user-edit"></i> 
+                    <strong>Penulis Modul:</strong> <span id="writerInfo">-</span>
+                </div>
+                
+                <!-- Penilai Info -->
+                <div id="evaluatorInfo" class="hint evaluator-hint" style="display: none;">
+                    <i class="fas fa-user-check"></i> 
+                    <span id="evaluatorDetail">Pilih lesson untuk melihat penilai yang bertugas</span>
+                </div>
+                
+                <!-- ================= MODUL PREVIEW ================= -->
+                <div id="modulPreview" class="modul-container hidden">
+                    <div class="modul-header" id="modulHeader">
+                        <span><i class="fas fa-eye"></i> Preview Modul (Klik untuk expand/collapse)</span>
+                        <span id="previewToggle"><i class="fas fa-chevron-down"></i></span>
+                    </div>
+                    <div class="modul-content" id="modulContent" style="display: none;">
+                        <iframe id="embedFrame" class="embed-frame" src="" style="height: 500px;"></iframe>
+                        <div class="resize-controls">
+                            <div class="hint">
+                                <i class="fas fa-arrows-alt-v"></i> Sesuaikan tinggi preview sesuai kebutuhan
+                            </div>
+                            <button class="resize-btn" data-height="400">
+                                <i class="fas fa-compress"></i> Kecil (400px)
+                            </button>
+                            <button class="resize-btn" data-height="600">
+                                <i class="fas fa-square"></i> Sedang (600px)
+                            </button>
+                            <button class="resize-btn" data-height="800">
+                                <i class="fas fa-expand"></i> Besar (800px)
+                            </button>
+                            <button class="resize-btn" data-height="1000">
+                                <i class="fas fa-maximize"></i> Full (1000px)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ================= FORM PENILAIAN ================= -->
+                <h3><i class="fas fa-tasks"></i> Form Penilaian</h3>
+                <div class="hint">
+                    <i class="fas fa-lightbulb"></i> 
+                    Berikan skor 0-10 untuk setiap aspek. Skor 0 = sangat buruk, 10 = sangat baik.
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Aspek Penilaian</th>
+                                <th>Kriteria</th>
+                                <th>Skor (0-10)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabelAspek"></tbody>
+                    </table>
+                </div>
+                
+                <button class="btn btn-primary" id="saveBtn">
+                    <i class="fas fa-save"></i> Simpan Penilaian (<span id="saveButtonText">-</span>)
+                </button>
+                
+                <!-- ================= PROGRESS BAR ================= -->
+                <div class="progress-container">
+                    <div class="progress-info">
+                        <span>Progress Penilaian</span>
+                        <span id="progressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text">
+                        <i class="fas fa-chart-line"></i>
+                        <span id="progressText">0 dari 0 modul sudah dinilai</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ================= REKAP TAB ================= -->
+            <div id="rekapTab" class="tab-pane hidden">
+                <h3><i class="fas fa-chart-pie"></i> Rekapan Lengkap (<span id="totalRekapLessons">0</span> Lesson)</h3>
+                
+                <!-- Statistics Cards -->
+                <div class="stats-container">
+                    <div class="stat-card total">
+                        <h4><i class="fas fa-chart-bar"></i> Total Keseluruhan</h4>
+                        <div class="stat-number" id="statTotalLessons">0</div>
+                        <div class="stat-detail">
+                            <span>Total Lesson</span>
+                            <span>0 Data</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card amar">
+                        <h4><i class="fas fa-user-tie"></i> Mr. Amar</h4>
+                        <div class="stat-number" id="totalAmarLessons">0</div>
+                        <div class="stat-detail">
+                            <span>Target: <span id="amarTarget">0</span> Lesson</span>
+                            <span id="amarProgress">0%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-card rina">
+                        <h4><i class="fas fa-user-graduate"></i> Ms. Rina</h4>
+                        <div class="stat-number" id="totalRinaLessons">0</div>
+                        <div class="stat-detail">
+                            <span>Target: <span id="rinaTarget">0</span> Lesson</span>
+                            <span id="rinaProgress">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Summary -->
+                <div class="progress-container">
+                    <div class="progress-info">
+                        <span>Progress Keseluruhan</span>
+                        <span id="totalProgressPercent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="totalProgressFill" style="width: 0%"></div>
+                    </div>
+                    <div class="progress-text">
+                        <i class="fas fa-check-circle"></i>
+                        <span id="totalProgressText">0 dari 0 modul sudah dinilai (0%)</span>
+                    </div>
+                </div>
+                
+                <!-- Rekap Table -->
+                <div class="hint">
+                    <i class="fas fa-palette"></i> 
+                    <span class="assignment-badge badge-amar">Mr. Amar (<span id="badgeAmarCount">0</span> Lesson)</span> - 
+                    <span class="assignment-badge badge-rina">Ms. Rina (<span id="badgeRinaCount">0</span> Lesson)</span>
+                    | Baris dengan background hijau menunjukkan modul yang sudah dinilai.
+                </div>
+                
+                <div class="table-container">
+                    <table id="rekapTable">
+                        <thead>
+                            <tr>
+                                <th>No</th>
+                                <th>Mapel</th>
+                                <th>Level</th>
+                                <th>Lesson</th>
+                                <th>Penulis</th>
+                                <th>Penilai</th>
+                                <th>Status</th>
+                                <th>Total Skor</th>
+                                <th>Skala 100</th>
+                                <th>Detail Skor</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rekapTableBody">
+                            <tr>
+                                <td colspan="10" style="text-align: center; padding: 40px; color: var(--gray);">
+                                    <i class="fas fa-spinner fa-spin"></i> Memuat data dari backup.json...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Summary -->
+                <div class="summary-container">
+                    <div class="summary-grid">
+                        <div>
+                            <strong>Total Lesson:</strong> <span id="totalModuls">0</span>
+                        </div>
+                        <div>
+                            <strong>Mr. Amar:</strong> <span id="amarAssigned">0</span> lesson
+                        </div>
+                        <div>
+                            <strong>Ms. Rina:</strong> <span id="rinaAssigned">0</span> lesson
+                        </div>
+                        <div>
+                            <strong>Sudah Dinilai:</strong> <span id="ratedModuls">0</span>
+                        </div>
+                        <div>
+                            <strong>Belum Dinilai:</strong> <span id="pendingModuls">0</span>
+                        </div>
+                        <div>
+                            <strong>Rata-rata Skor:</strong> <span id="averageScore">0</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Export Actions -->
+                <div class="export-actions" style="margin-top: 25px; text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px;">
+                    <button class="btn btn-secondary" id="exportExcelBtn" style="background: #28a745;">
+                        <i class="fas fa-file-excel"></i> Export ke Excel
+                    </button>
+                    <button class="btn btn-secondary" id="exportPDFBtn" style="margin-left: 10px; background: #dc3545;">
+                        <i class="fas fa-file-pdf"></i> Export ke PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+  // ================= FIREBASE INITIALIZATION =================
+  console.log("Initializing Firebase...");
+  
+  // Your web app's Firebase configuration
+  const firebaseConfig = {
+    apiKey: "AIzaSyBSopS3jTEwSHPH6jq-vj22RE017v51gBk",
+    authDomain: "rekapemodulsem1.firebaseapp.com",
+    projectId: "rekapemodulsem1",
+    storageBucket: "rekapemodulsem1.firebasestorage.app",
+    messagingSenderId: "869624518566",
+    appId: "1:869624518566:web:8af4902e39a2c35c0e2167",
+    measurementId: "G-ZFS584JVYD"
+  };
+
+  try {
+    // Initialize Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+      console.log("✅ Firebase App initialized");
+    } else {
+      firebase.app(); // jika sudah ada, gunakan yang sudah ada
+      console.log("✅ Firebase App already initialized");
+    }
+    
+    // Get Firestore instance (compat version)
+    const db = firebase.firestore();
+    
+    // Export untuk digunakan di script.js
+    window.firebaseDB = db;
+    window.firebaseApp = firebase;
+    
+    console.log("✅ Firestore DB ready:", !!window.firebaseDB);
+    
+  } catch (error) {
+    console.error("❌ Firebase initialization error:", error);
+    window.firebaseDB = null;
+  }
+</script>
+
+<script src="script.js"></script>
+</body>
+</html>
