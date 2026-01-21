@@ -832,12 +832,25 @@ function renderRekap() {
             writer = modul.writer || 'Tidak diketahui';
         }
         
-        let evaluatorBadge = assignedEvaluator === 'amar' 
-            ? `<span class="assignment-badge badge-amar">${evaluatorName}</span>`
-            : assignedEvaluator === 'rina'
-            ? `<span class="assignment-badge badge-rina">${evaluatorName}</span>`
-            : '<span style="color: var(--gray); font-size: 12px;">Belum ditentukan</span>';
-        
+        // === KODE BARU (COPY PASTE KE SINI) ===
+
+// 1. Tentukan nama yang akan ditampilkan (Real vs Rencana)
+let displayName = isRated ? rating.evaluator : (evaluatorName || "Belum ditentukan");
+
+// 2. Tentukan warna badge berdasarkan nama orangnya
+let badgeClass = "";
+if (displayName === 'Mr. Amar') {
+    badgeClass = "badge-amar";
+} else if (displayName === 'Ms. Rina') {
+    badgeClass = "badge-rina";
+}
+
+// 3. Buat HTML Badge
+let evaluatorBadge = badgeClass 
+    ? `<span class="assignment-badge ${badgeClass}">${displayName}</span>`
+    : `<span style="color: var(--gray); font-size: 12px;">${displayName}</span>`;
+
+// ==========================================
         row.innerHTML = `
             <td style="text-align: center; font-weight: bold;">${index + 1}</td>
             <td><strong>${modul.mapel}</strong></td>
