@@ -492,62 +492,98 @@ function onLevelChange() {
 }
 
 function onLessonChange() {
+    // 1. Ambil nilai dari input dropdown (sesuai ID di HTML Anda)
     const mapel = document.getElementById('mapel').value;
     const level = document.getElementById('level').value;
     const lesson = document.getElementById('lesson').value;
     
+    // Jika data belum lengkap, sembunyikan preview
     if (!mapel || !level || !lesson) {
         hidePreviewAndEvaluator();
         return;
     }
     
-    // Find the selected lesson
+    // 2. Cari data detail modul dari database backup
+    // Menggunakan loose equality (==) untuk level karena di JSON angka, di HTML string
     let obj = dataBackup.find(x => 
         x.mapel === mapel && 
-        x.level === level && 
+        x.level == level && 
         x.lesson === lesson
     );
     
     if (obj) {
         console.log("Selected lesson:", obj);
         
-        // Show writer info
+        // 3. Update Info Penulis
         document.getElementById('writerInfo').textContent = obj.writer || 'Tidak diketahui';
         document.getElementById('writerDetail').style.display = 'block';
         
-        // Show/hide preview based on embed URL
+        // 4. Update Preview Iframe (itch.io)
         let preview = document.getElementById('modulPreview');
         let iframe = document.getElementById('embedFrame');
         
-        if (obj.embed && obj.embed !== '#') {
+        if (obj.embed && obj.embed !== '#' && obj.embed !== '') {
             iframe.src = obj.embed;
             preview.classList.remove('hidden');
         } else {
             preview.classList.add('hidden');
         }
         
-        // Show evaluator info
+        // ============================================
+        // BAGIAN PERBAIKAN LOGIKA PENILAI (Fakta vs Rencana)
+        // ============================================
+        
         let key = obj.fullKey;
-        let evaluator = evaluatorAssignment[key] || 'Belum ditentukan';
-        let evaluatorClass = assignmentMap[key] === 'amar' ? 'badge-amar' : 
-                            assignmentMap[key] === 'rina' ? 'badge-rina' : '';
         
-        document.getElementById('currentEvaluator').textContent = evaluator;
+        // Cek Fakta: Apakah modul ini sudah ada di database penilaian (rekapData)?
+        let existingRating = rekapData.find(r => 
+            r.mapel === mapel && 
+            r.level == level && 
+            r.lesson === lesson
+        );
+        
+        // Tentukan Nama Penilai Final:
+        // Prioritas 1: Jika sudah dinilai (existingRating), pakai nama PENILAI ASLI.
+        // Prioritas 2: Jika belum, pakai nama dari RENCANA TUGAS (evaluatorAssignment).
+        let plannedEvaluator = evaluatorAssignment[key] || 'Belum ditentukan';
+        let finalEvaluator = existingRating ? existingRating.evaluator : plannedEvaluator;
+        
+        // Tentukan Warna Badge berdasarkan nama final
+        let badgeClass = '';
+        if (finalEvaluator === 'Mr. Amar') {
+            badgeClass = 'badge-amar';
+        } else if (finalEvaluator === 'Ms. Rina') {
+            badgeClass = 'badge-rina';
+        }
+        
+        // Update Teks Nama Penilai di Judul Kecil
+        document.getElementById('currentEvaluator').textContent = finalEvaluator;
+        
+        // Update Keterangan Detail dengan logika bahasa:
+        // Jika sudah ada data -> "telah menilai"
+        // Jika belum ada data -> "bertugas menilai"
+        let statusText = existingRating ? "telah menilai" : "bertugas menilai";
+        
         document.getElementById('evaluatorDetail').innerHTML = 
-            evaluatorClass ? 
-            `<span class="assignment-badge ${evaluatorClass}">${evaluator}</span> bertugas menilai modul ini` :
-            `<span style="color: var(--gray)">${evaluator}</span>`;
+            badgeClass ? 
+            `<span class="assignment-badge ${badgeClass}">${finalEvaluator}</span> ${statusText} modul ini` :
+            `<span style="color: var(--gray)">${finalEvaluator}</span>`;
         
+        // Tampilkan panel info evaluator
         document.getElementById('evaluatorInfo').style.display = 'block';
         
-        // Update save button text
-        document.getElementById('saveButtonText').textContent = evaluator;
+        // Update teks pada tombol Simpan agar sesuai nama penilai aktif
+        document.getElementById('saveButtonText').textContent = finalEvaluator;
         
-        // Load existing scores
+        // ============================================
+        
+        // 5. Render aspek penilaian (mengisi bintang/input jika sudah ada nilai)
         setTimeout(() => {
             renderAspek();
         }, 100);
+        
     } else {
+        // Jika data lesson tidak ditemukan di backup.json
         hidePreviewAndEvaluator();
     }
 }
